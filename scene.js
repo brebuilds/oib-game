@@ -497,8 +497,11 @@ function discover(spotId) {
   updateJournal();
 }
 
+let allDiscoveredCelebrated = false;
+
 function updateJournal() {
-  journalHeaderEl.textContent = `\ud83d\udcd6 Discovery Journal \u2014 ${discovered.size}/${spots.length}`;
+  const headerBase = `\ud83d\udcd6 Discovery Journal \u2014 ${discovered.size}/${spots.length}`;
+  journalHeaderEl.textContent = discovered.size === spots.length ? headerBase + ' \u2728' : headerBase;
   while (journalListEl.firstChild) journalListEl.removeChild(journalListEl.firstChild);
   for (const spot of spots) {
     const entry = document.createElement('div');
@@ -511,6 +514,12 @@ function updateJournal() {
       entry.appendChild(tooltip);
     }
     journalListEl.appendChild(entry);
+  }
+
+  // Celebration when all spots discovered
+  if (discovered.size === spots.length && !allDiscoveredCelebrated) {
+    allDiscoveredCelebrated = true;
+    setTimeout(() => addMsg('\ud83c\udf89 You\'ve discovered all of Ocean Isle Beach!'), 500);
   }
 }
 
@@ -1344,6 +1353,60 @@ function updateDayNight(delta, elapsed) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+//  TASK 14 — Final Polish
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Interaction Prompt ────────────────────────────────────────────
+const interactPromptEl = document.getElementById('interact-prompt');
+
+function updateInteractPrompt() {
+  if (dialogActive) {
+    interactPromptEl.classList.remove('visible');
+    return;
+  }
+
+  const px = playerGroup.position.x;
+  const pz = playerGroup.position.z;
+  let promptText = '';
+
+  // Check NPC proximity
+  for (const npc of npcs) {
+    const ddx = px - npc.px;
+    const ddz = pz - npc.pz;
+    if (Math.sqrt(ddx * ddx + ddz * ddz) < 2) {
+      promptText = `Press SPACE \u2014 ${npc.def.name}`;
+      break;
+    }
+  }
+
+  // Check building proximity
+  if (!promptText) {
+    for (const b of buildings) {
+      const entranceX = b.x + b.w / 2;
+      const entranceZ = b.z + b.d;
+      const ddx = px - entranceX;
+      const ddz = pz - entranceZ;
+      if (Math.sqrt(ddx * ddx + ddz * ddz) < 3) {
+        promptText = `Press SPACE \u2014 ${b.name}`;
+        break;
+      }
+    }
+  }
+
+  if (promptText) {
+    interactPromptEl.textContent = promptText;
+    interactPromptEl.classList.add('visible');
+  } else {
+    interactPromptEl.classList.remove('visible');
+  }
+}
+
+// ─── Welcome Messages ──────────────────────────────────────────────
+setTimeout(() => addMsg('\ud83c\udfd6 Welcome to Ocean Isle Beach, NC!'), 500);
+setTimeout(() => addMsg('Explore the island and discover local spots!'), 1500);
+setTimeout(() => addMsg('WASD to move, SPACE to interact'), 2500);
+
+// ═══════════════════════════════════════════════════════════════════════
 //  Animation Loop
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1388,6 +1451,9 @@ function animate(timestamp) {
   // Zone discoveries & location label
   checkZoneDiscoveries();
   updateLocationLabel();
+
+  // Interaction prompt
+  updateInteractPrompt();
 
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
