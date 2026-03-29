@@ -12,7 +12,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.insertBefore(renderer.domElement, document.getElementById('ui'));
 
@@ -214,7 +214,7 @@ const waterFrag = /* glsl */`
 `;
 
 // Ocean plane — covers rows 0-7 and extends far north
-const oceanGeo = new THREE.PlaneGeometry(MAP_W + 40, 80, 80, 80);
+const oceanGeo = new THREE.PlaneGeometry(MAP_W + 40, 160, 80, 80);
 oceanGeo.rotateX(-Math.PI / 2);
 const oceanMat = new THREE.ShaderMaterial({
   uniforms: waterUniforms,
@@ -222,7 +222,7 @@ const oceanMat = new THREE.ShaderMaterial({
   fragmentShader: waterFrag,
 });
 const ocean = new THREE.Mesh(oceanGeo, oceanMat);
-ocean.position.set(MAP_W / 2, -0.05, -33); // center of 80-unit depth ending at z≈7
+ocean.position.set(MAP_W / 2, -0.05, -73); // center of 160-unit depth ending at z≈7
 scene.add(ocean);
 
 // ICW plane (rows 35-39) — calmer, darker
