@@ -28,7 +28,8 @@ const camera = new THREE.OrthographicCamera(
   frustumSize / 2, -frustumSize / 2,
   0.1, 200
 );
-camera.position.set(30, 20, 45);
+// ~35 degree angle: Y=14, Z-offset=20 → atan(14/20) ≈ 35°
+camera.position.set(30, 14, 45);
 camera.lookAt(30, 0, 25);
 
 // ─── Lights ──────────────────────────────────────────────────────────
@@ -311,7 +312,7 @@ function makeCharTexture(bodyColor, hairColor, legOffset = 0) {
 function makeBillboardSprite(bodyColor, hairColor) {
   const texStand = makeCharTexture(bodyColor, hairColor, 0);
   const texWalk = makeCharTexture(bodyColor, hairColor, 1);
-  const geo = new THREE.PlaneGeometry(0.8, 1.2);
+  const geo = new THREE.PlaneGeometry(1.4, 2.0);
   const mat = new THREE.MeshBasicMaterial({ map: texStand, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.userData.texStand = texStand;
@@ -326,15 +327,15 @@ function makeBillboardSprite(bodyColor, hairColor) {
 
 // Player with billboard sprite
 const playerGroup = new THREE.Group();
-const playerSprite = makeBillboardSprite('#2288cc', '#3a2a1a');
-playerSprite.position.y = 0.6;
+const playerSprite = makeBillboardSprite('#22ccff', '#3a2a1a');
+playerSprite.position.y = 1.0;
 playerGroup.add(playerSprite);
 
 // Golden diamond bobbing above
-const diamondGeo = new THREE.OctahedronGeometry(0.15);
+const diamondGeo = new THREE.OctahedronGeometry(0.25);
 const diamondMat = new THREE.MeshStandardMaterial({ color: '#ffd700', emissive: '#aa8800', emissiveIntensity: 0.4 });
 const diamond = new THREE.Mesh(diamondGeo, diamondMat);
-diamond.position.y = 1.6;
+diamond.position.y = 2.4;
 playerGroup.add(diamond);
 
 playerGroup.position.set(30, 0, 25);
@@ -439,7 +440,7 @@ function updatePlayer() {
 function updateCamera() {
   camera.position.x += (playerGroup.position.x - camera.position.x) * 0.05;
   camera.position.z += (playerGroup.position.z + 20 - camera.position.z) * 0.05;
-  camera.position.y += (20 - camera.position.y) * 0.05;
+  camera.position.y += (14 - camera.position.y) * 0.05;
   camera.lookAt(playerGroup.position.x, 0, playerGroup.position.z);
 }
 
@@ -887,8 +888,8 @@ gltfLoader.load(
   'assets/oib-pier-clay.glb',
   (gltf) => {
     const pier = gltf.scene;
-    pier.position.set(30, 0, 7);
-    pier.scale.set(1.0, 1.0, 1.0);
+    pier.position.set(30, 0, 5);
+    pier.scale.set(0.02, 0.02, 0.02);
     // Enable shadows on all meshes
     pier.traverse(child => {
       if (child.isMesh) {
@@ -1423,7 +1424,7 @@ function animate(timestamp) {
   icwUniforms.uTime.value = elapsed;
 
   // Diamond bob
-  diamond.position.y = 1.6 + Math.sin(elapsed * 3) * 0.1;
+  diamond.position.y = 2.4 + Math.sin(elapsed * 3) * 0.15;
   diamond.rotation.y = elapsed * 2;
 
   // Player + Camera
