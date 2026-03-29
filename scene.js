@@ -897,6 +897,87 @@ gltfLoader.load(
 );
 
 // ═══════════════════════════════════════════════════════════════════════
+//  TASK 12 — Palm Trees
+// ═══════════════════════════════════════════════════════════════════════
+
+function createPalmTree() {
+  const tree = new THREE.Group();
+
+  // Trunk — slight lean
+  const trunkGeo = new THREE.CylinderGeometry(0.1, 0.15, 2, 6);
+  const trunkMat = new THREE.MeshStandardMaterial({ color: '#8b6914' });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = 1;
+  trunk.rotation.x = 0.1;
+  trunk.castShadow = true;
+  tree.add(trunk);
+
+  // Fronds group (for sway animation)
+  const frondsGroup = new THREE.Group();
+  frondsGroup.position.y = 2;
+
+  const frondGeo = new THREE.PlaneGeometry(1.5, 0.3);
+  const frondMat = new THREE.MeshStandardMaterial({ color: '#2a7c2a', side: THREE.DoubleSide });
+
+  const frondCount = 6;
+  for (let i = 0; i < frondCount; i++) {
+    const frond = new THREE.Mesh(frondGeo, frondMat);
+    const angle = (i / frondCount) * Math.PI * 2;
+    frond.rotation.y = angle;
+    frond.rotation.x = -0.8; // angle downward ~45 deg
+    frond.position.set(
+      Math.cos(angle) * 0.3,
+      0,
+      Math.sin(angle) * 0.3
+    );
+    frond.castShadow = true;
+    frondsGroup.add(frond);
+  }
+
+  tree.add(frondsGroup);
+  tree.frondsGroup = frondsGroup;
+
+  // Coconuts
+  const coconutGeo = new THREE.SphereGeometry(0.08, 6, 6);
+  const coconutMat = new THREE.MeshStandardMaterial({ color: '#6b4226' });
+  for (let i = 0; i < 3; i++) {
+    const nut = new THREE.Mesh(coconutGeo, coconutMat);
+    const a = (i / 3) * Math.PI * 2;
+    nut.position.set(Math.cos(a) * 0.15, 1.85, Math.sin(a) * 0.15);
+    tree.add(nut);
+  }
+
+  return tree;
+}
+
+// Hardcoded palm tree positions
+const treePositions = [
+  // Coastal road sides (row ~13 area)
+  [5, 13], [10, 13], [15, 13], [40, 13], [45, 13], [50, 13], [55, 13],
+  // Between buildings
+  [18, 15], [25, 16], [32, 16], [38, 14],
+  // Park area cluster (rows 18-22, cols 20-40)
+  [20, 18], [25, 19], [30, 18], [35, 19], [22, 21], [28, 22], [33, 21],
+  [38, 20], [40, 19], [17, 20],
+  // Roundabout center
+  [30, 12.5],
+  // Scattered on grass
+  [8, 16], [12, 25], [45, 18], [50, 22], [15, 30], [42, 28],
+  // Near beach
+  [8, 10.5], [20, 10.5], [40, 10.5], [52, 10.5],
+];
+
+const trees = [];
+for (const [x, z] of treePositions) {
+  const tree = createPalmTree();
+  tree.position.set(x, 0, z);
+  // Slight random rotation for variety
+  tree.rotation.y = Math.random() * Math.PI * 2;
+  scene.add(tree);
+  trees.push(tree);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  TASK 11 — Day/Night Cycle
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1092,6 +1173,11 @@ function animate(timestamp) {
 
   // NPC patrol + billboards
   updateNPCs();
+
+  // Tree sway
+  for (const tree of trees) {
+    tree.frondsGroup.rotation.z = Math.sin(elapsed * 0.5 + tree.position.x * 0.3) * 0.05;
+  }
 
   // Day/night cycle
   updateDayNight(delta, elapsed);
