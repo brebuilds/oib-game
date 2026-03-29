@@ -978,6 +978,205 @@ for (const [x, z] of treePositions) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+//  TASK 13 — Beach Props & Ambient Details
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Beach Umbrellas ───────────────────────────────────────────────
+const umbrellaColors = ['#ff4444', '#4488ff', '#44aa44', '#ffaa22'];
+const umbrellaPositions = [
+  [8, 8], [15, 9], [22, 8], [35, 9], [42, 8], [48, 9], [55, 8], [12, 9.5]
+];
+
+for (let i = 0; i < umbrellaPositions.length; i++) {
+  const [ux, uz] = umbrellaPositions[i];
+  const umbrellaGroup = new THREE.Group();
+
+  // Pole
+  const poleGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 4);
+  const poleMat = new THREE.MeshStandardMaterial({ color: '#6b4226' });
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.y = 0.5;
+  umbrellaGroup.add(pole);
+
+  // Canopy
+  const canopyGeo = new THREE.ConeGeometry(0.5, 0.3, 8);
+  const canopyMat = new THREE.MeshStandardMaterial({ color: umbrellaColors[i % umbrellaColors.length] });
+  const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+  canopy.position.y = 1.0;
+  canopy.castShadow = true;
+  umbrellaGroup.add(canopy);
+
+  umbrellaGroup.position.set(ux, 0, uz);
+  scene.add(umbrellaGroup);
+}
+
+// ─── Seagulls ──────────────────────────────────────────────────────
+const seagulls = [];
+const seagullMat = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide });
+
+for (let i = 0; i < 4; i++) {
+  const gull = new THREE.Group();
+
+  // Two wing planes forming a V
+  const wingGeo = new THREE.PlaneGeometry(0.4, 0.08);
+  const leftWing = new THREE.Mesh(wingGeo, seagullMat);
+  leftWing.rotation.z = 0.3;
+  leftWing.position.x = -0.15;
+  gull.add(leftWing);
+
+  const rightWing = new THREE.Mesh(wingGeo, seagullMat);
+  rightWing.rotation.z = -0.3;
+  rightWing.position.x = 0.15;
+  gull.add(rightWing);
+
+  // Body dot
+  const bodyGeo = new THREE.SphereGeometry(0.04, 4, 4);
+  const body = new THREE.Mesh(bodyGeo, seagullMat);
+  gull.add(body);
+
+  gull.position.set(
+    20 + i * 10,
+    15 + Math.random() * 5,
+    5 + Math.random() * 10
+  );
+
+  gull.userData.orbitRadius = 8 + Math.random() * 5;
+  gull.userData.orbitSpeed = 0.15 + Math.random() * 0.1;
+  gull.userData.orbitCenter = { x: gull.position.x, z: gull.position.z };
+  gull.userData.leftWing = leftWing;
+  gull.userData.rightWing = rightWing;
+
+  scene.add(gull);
+  seagulls.push(gull);
+}
+
+// ─── Boats on ICW ──────────────────────────────────────────────────
+const boats = [];
+for (let i = 0; i < 2; i++) {
+  const boat = new THREE.Group();
+
+  // Hull
+  const hullGeo = new THREE.BoxGeometry(1.5, 0.3, 0.6);
+  const hullMat = new THREE.MeshStandardMaterial({ color: '#ffffff' });
+  const hull = new THREE.Mesh(hullGeo, hullMat);
+  hull.castShadow = true;
+  boat.add(hull);
+
+  // Cabin
+  const cabinGeo = new THREE.BoxGeometry(0.5, 0.4, 0.4);
+  const cabinMat = new THREE.MeshStandardMaterial({ color: '#4466aa' });
+  const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+  cabin.position.y = 0.35;
+  cabin.position.x = -0.2;
+  cabin.castShadow = true;
+  boat.add(cabin);
+
+  boat.position.set(10 + i * 30, 0.15, 36.5);
+  boat.userData.startX = boat.position.x;
+  boat.userData.driftSpeed = 0.3 + i * 0.15;
+  scene.add(boat);
+  boats.push(boat);
+}
+
+// ─── Pier Flag ─────────────────────────────────────────────────────
+const flagGroup = new THREE.Group();
+
+const flagPoleGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.5, 4);
+const flagPoleMat = new THREE.MeshStandardMaterial({ color: '#333333' });
+const flagPole = new THREE.Mesh(flagPoleGeo, flagPoleMat);
+flagPole.position.y = 0.75;
+flagGroup.add(flagPole);
+
+const flagGeo = new THREE.PlaneGeometry(0.6, 0.4);
+const flagMat = new THREE.MeshStandardMaterial({ color: '#cc2222', side: THREE.DoubleSide });
+const flag = new THREE.Mesh(flagGeo, flagMat);
+flag.position.set(0.3, 1.3, 0);
+flagGroup.add(flag);
+
+flagGroup.position.set(28, 0, 10.5); // Near pier entrance
+scene.add(flagGroup);
+
+// ─── Controls Hint ─────────────────────────────────────────────────
+const controlsHintEl = document.createElement('div');
+controlsHintEl.id = 'controls-hint';
+controlsHintEl.textContent = 'WASD: Move | SPACE: Interact';
+controlsHintEl.style.cssText = `
+  position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+  background: rgba(15,15,30,0.6); border: 1px solid rgba(80,80,120,0.3);
+  border-radius: 8px; padding: 6px 16px; font: 11px monospace; color: rgba(255,255,255,0.5);
+  z-index: 80; pointer-events: none; transition: opacity 0.6s ease; opacity: 1;
+`;
+document.getElementById('ui').appendChild(controlsHintEl);
+
+let controlsHintVisible = true;
+let firstMoveTime = 0;
+let lastMoveTime = 0;
+let playerHasMoved = false;
+
+function updateControlsHint(elapsed) {
+  const isMoving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']
+    || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
+
+  if (isMoving) {
+    lastMoveTime = elapsed;
+    if (!playerHasMoved) {
+      playerHasMoved = true;
+      firstMoveTime = elapsed;
+    }
+  }
+
+  if (playerHasMoved && elapsed - firstMoveTime > 10 && controlsHintVisible) {
+    controlsHintEl.style.opacity = '0';
+    controlsHintVisible = false;
+  }
+
+  // Show again if idle > 15 seconds
+  if (playerHasMoved && !isMoving && elapsed - lastMoveTime > 15 && !controlsHintVisible) {
+    controlsHintEl.style.opacity = '1';
+    controlsHintVisible = true;
+    firstMoveTime = elapsed; // Reset so it can fade again
+    playerHasMoved = false;
+  }
+}
+
+function updateBeachProps(elapsed) {
+  // Seagulls orbit and flap
+  const hour = gameTime / 60;
+  const dayTime = hour >= 8 && hour < 18;
+
+  for (const gull of seagulls) {
+    gull.visible = dayTime;
+    if (!dayTime) continue;
+
+    const t = elapsed * gull.userData.orbitSpeed;
+    gull.position.x = gull.userData.orbitCenter.x + Math.cos(t) * gull.userData.orbitRadius;
+    gull.position.z = gull.userData.orbitCenter.z + Math.sin(t) * gull.userData.orbitRadius;
+
+    // Face direction of travel
+    gull.rotation.y = -t + Math.PI / 2;
+
+    // Wing flap
+    const flap = Math.sin(elapsed * 4 + gull.userData.orbitRadius) * 0.4;
+    gull.userData.leftWing.rotation.z = 0.3 + flap;
+    gull.userData.rightWing.rotation.z = -0.3 - flap;
+  }
+
+  // Boats bob and drift
+  for (let i = 0; i < boats.length; i++) {
+    const boat = boats[i];
+    boat.position.y = 0.15 + Math.sin(elapsed * 0.8 + i) * 0.05;
+    boat.position.x += boat.userData.driftSpeed * 0.005;
+    // Wrap when off screen
+    if (boat.position.x > MAP_W + 5) {
+      boat.position.x = -5;
+    }
+  }
+
+  // Flag wave
+  flag.rotation.y = Math.sin(elapsed * 2) * 0.3;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  TASK 11 — Day/Night Cycle
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1178,6 +1377,10 @@ function animate(timestamp) {
   for (const tree of trees) {
     tree.frondsGroup.rotation.z = Math.sin(elapsed * 0.5 + tree.position.x * 0.3) * 0.05;
   }
+
+  // Beach props & seagulls
+  updateBeachProps(elapsed);
+  updateControlsHint(elapsed);
 
   // Day/night cycle
   updateDayNight(delta, elapsed);
