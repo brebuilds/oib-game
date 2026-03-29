@@ -897,6 +897,173 @@ gltfLoader.load(
 );
 
 // ═══════════════════════════════════════════════════════════════════════
+//  TASK 11 — Day/Night Cycle
+// ═══════════════════════════════════════════════════════════════════════
+
+let gameTime = 10 * 60; // start at 10:00 AM (in minutes)
+let dayCount = 1;
+const GAME_MINUTES_PER_REAL_SECOND = 1; // full day-night cycle = 24 real minutes
+
+const clockEl = document.getElementById('game-clock');
+
+// ─── Stars ─────────────────────────────────────────────────────────
+const starCount = 100;
+const starPositions = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  starPositions[i * 3]     = (Math.random() - 0.5) * 80 + 30; // X spread around map center
+  starPositions[i * 3 + 1] = 30 + Math.random() * 20;          // Y 30-50
+  starPositions[i * 3 + 2] = (Math.random() - 0.5) * 60 + 20; // Z spread
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, sizeAttenuation: true });
+const stars = new THREE.Points(starGeo, starMat);
+stars.visible = false;
+scene.add(stars);
+
+// ─── Moon ──────────────────────────────────────────────────────────
+const moonGeo = new THREE.SphereGeometry(1, 16, 16);
+const moonMat = new THREE.MeshBasicMaterial({ color: '#ffffcc' });
+const moon = new THREE.Mesh(moonGeo, moonMat);
+moon.position.set(50, 35, 10);
+moon.visible = false;
+scene.add(moon);
+
+// ─── Collect window meshes for night glow ──────────────────────────
+// Windows already exist with emissive #446688. We'll store references to adjust intensity.
+const windowMeshes = [];
+scene.traverse(child => {
+  if (child.isMesh && child.material && child.material.emissive) {
+    const e = child.material.emissive;
+    // Match window material color #aaddff
+    if (child.material.color && Math.abs(child.material.color.r - 0.667) < 0.1
+        && Math.abs(child.material.color.g - 0.867) < 0.1
+        && Math.abs(child.material.color.b - 1.0) < 0.1) {
+      // Clone material so we can adjust per-frame without affecting all
+      child.material = child.material.clone();
+      windowMeshes.push(child);
+    }
+  }
+});
+
+// ─── Sky color helpers ─────────────────────────────────────────────
+const skyDay = new THREE.Color('#5bbfee');
+const skySunset = new THREE.Color('#ff6622');
+const skyNight = new THREE.Color('#0a0a2a');
+const skyDawn = new THREE.Color('#ff9944');
+
+const ambDay = new THREE.Color('#fff8e7');
+const ambNight = new THREE.Color('#1a1a3a');
+
+const sunColorDawn = new THREE.Color('#ffaa44');
+const sunColorDay = new THREE.Color('#ffffff');
+const sunColorSunset = new THREE.Color('#ff6622');
+const sunColorNight = new THREE.Color('#334466');
+
+const _tmpColor = new THREE.Color();
+const _tmpColor2 = new THREE.Color();
+
+function updateDayNight(delta, elapsed) {
+  // Advance game clock
+  gameTime += delta * GAME_MINUTES_PER_REAL_SECOND * 60;
+  if (gameTime >= 1440) {
+    gameTime -= 1440;
+    dayCount++;
+  }
+  const hour = gameTime / 60;
+
+  // ── Sun position ────────────────────────────────────────────────
+  const sunAngle = ((hour - 6) / 12) * Math.PI; // 0 at 6am, PI at 6pm
+  dirLight.position.set(
+    30 + Math.cos(sunAngle) * 25,
+    Math.sin(sunAngle) * 25 + 5,
+    20 + Math.sin(sunAngle) * 10
+  );
+
+  // ── Sun color & intensity ──────────────────────────────────────
+  if (hour >= 6 && hour < 8) {
+    // Dawn
+    const t = (hour - 6) / 2;
+    dirLight.color.copy(sunColorDawn).lerp(sunColorDay, t);
+    dirLight.intensity = 0.3 + t * 0.9;
+  } else if (hour >= 8 && hour < 17) {
+    // Day
+    dirLight.color.copy(sunColorDay);
+    dirLight.intensity = 1.2;
+  } else if (hour >= 17 && hour < 20) {
+    // Sunset
+    const t = (hour - 17) / 3;
+    dirLight.color.copy(sunColorDay).lerp(sunColorSunset, t);
+    dirLight.intensity = 1.2 - t * 1.05;
+  } else {
+    // Night
+    dirLight.color.copy(sunColorNight);
+    dirLight.intensity = 0.15;
+  }
+
+  // ── Ambient light ──────────────────────────────────────────────
+  if (hour >= 6 && hour < 8) {
+    const t = (hour - 6) / 2;
+    ambientLight.color.copy(ambNight).lerp(ambDay, t);
+    ambientLight.intensity = 0.15 + t * 0.25;
+  } else if (hour >= 8 && hour < 17) {
+    ambientLight.color.copy(ambDay);
+    ambientLight.intensity = 0.4;
+  } else if (hour >= 17 && hour < 20) {
+    const t = (hour - 17) / 3;
+    ambientLight.color.copy(ambDay).lerp(ambNight, t);
+    ambientLight.intensity = 0.4 - t * 0.25;
+  } else {
+    ambientLight.color.copy(ambNight);
+    ambientLight.intensity = 0.15;
+  }
+
+  // ── Sky background ─────────────────────────────────────────────
+  if (hour >= 8 && hour < 17) {
+    scene.background.copy(skyDay);
+  } else if (hour >= 17 && hour < 20) {
+    const t = (hour - 17) / 3;
+    scene.background.copy(skyDay).lerp(skySunset, t);
+  } else if (hour >= 20 || hour < 4) {
+    scene.background.copy(skyNight);
+  } else if (hour >= 4 && hour < 6) {
+    // Pre-dawn
+    const t = (hour - 4) / 2;
+    scene.background.copy(skyNight).lerp(skyDawn, t);
+  } else if (hour >= 6 && hour < 8) {
+    const t = (hour - 6) / 2;
+    scene.background.copy(skyDawn).lerp(skyDay, t);
+  }
+
+  // ── Stars & moon ───────────────────────────────────────────────
+  const isNight = hour >= 20 || hour < 6;
+  stars.visible = isNight;
+  moon.visible = isNight;
+  if (isNight) {
+    // Twinkle by adjusting size
+    starMat.size = 0.25 + Math.sin(elapsed * 2) * 0.08;
+    // Moon follows camera roughly
+    moon.position.set(
+      playerGroup.position.x + 20,
+      35,
+      playerGroup.position.z - 15
+    );
+  }
+
+  // ── Window glow at night ───────────────────────────────────────
+  const windowGlow = (hour >= 19 || hour < 6) ? 1.0 : 0.2;
+  for (const win of windowMeshes) {
+    win.material.emissiveIntensity = windowGlow;
+  }
+
+  // ── Clock UI ───────────────────────────────────────────────────
+  const h = Math.floor(hour) % 24;
+  const m = Math.floor(gameTime % 60);
+  const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  clockEl.textContent = `\ud83d\udd50 ${timeStr} \u2014 Day ${dayCount}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  Animation Loop
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -925,6 +1092,9 @@ function animate(timestamp) {
 
   // NPC patrol + billboards
   updateNPCs();
+
+  // Day/night cycle
+  updateDayNight(delta, elapsed);
 
   // Zone discoveries & location label
   checkZoneDiscoveries();
