@@ -258,18 +258,77 @@ icw.position.set(MAP_W / 2, -0.05, 37.5);
 scene.add(icw);
 
 // ═══════════════════════════════════════════════════════════════════════
+//  TASK 7 — Billboard Sprite System
+// ═══════════════════════════════════════════════════════════════════════
+
+function makeCharTexture(bodyColor, hairColor, legOffset = 0) {
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 32;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  // Hair
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(11, 2, 10, 4);
+
+  // Head (skin)
+  ctx.fillStyle = '#f0c8a0';
+  ctx.fillRect(11, 5, 10, 8);
+
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(13, 8, 2, 2);
+  ctx.fillRect(18, 8, 2, 2);
+  // Eye highlights
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(13, 8, 1, 1);
+  ctx.fillRect(18, 8, 1, 1);
+
+  // Body
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(10, 13, 12, 10);
+
+  // Legs (darker variant of body)
+  const legDark = '#443322';
+  if (legOffset === 0) {
+    // Standing: two legs side by side
+    ctx.fillStyle = legDark;
+    ctx.fillRect(11, 23, 4, 7);
+    ctx.fillRect(17, 23, 4, 7);
+  } else {
+    // Walking: legs shifted
+    ctx.fillStyle = legDark;
+    ctx.fillRect(10, 23, 4, 7);
+    ctx.fillRect(18, 23, 4, 7);
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  return tex;
+}
+
+function makeBillboardSprite(bodyColor, hairColor) {
+  const texStand = makeCharTexture(bodyColor, hairColor, 0);
+  const texWalk = makeCharTexture(bodyColor, hairColor, 1);
+  const geo = new THREE.PlaneGeometry(0.8, 1.2);
+  const mat = new THREE.MeshBasicMaterial({ map: texStand, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.userData.texStand = texStand;
+  mesh.userData.texWalk = texWalk;
+  mesh.userData.animFrame = 0;
+  return mesh;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  TASK 4 — Player Movement & Camera Follow
 // ═══════════════════════════════════════════════════════════════════════
 
-// Placeholder player
+// Player with billboard sprite
 const playerGroup = new THREE.Group();
-const playerBody = new THREE.Mesh(
-  new THREE.BoxGeometry(0.8, 1.2, 0.4),
-  new THREE.MeshStandardMaterial({ color: '#2288cc' })
-);
-playerBody.castShadow = true;
-playerBody.position.y = 0.6;
-playerGroup.add(playerBody);
+const playerSprite = makeBillboardSprite('#2288cc', '#3a2a1a');
+playerSprite.position.y = 0.6;
+playerGroup.add(playerSprite);
 
 // Golden diamond bobbing above
 const diamondGeo = new THREE.OctahedronGeometry(0.15);
@@ -327,6 +386,21 @@ function updatePlayer() {
   // Clamp to map bounds
   playerGroup.position.x = Math.max(0.4, Math.min(MAP_W - 0.4, playerGroup.position.x));
   playerGroup.position.z = Math.max(0.4, Math.min(MAP_H - 0.4, playerGroup.position.z));
+
+  // Walk animation
+  const isMoving = dx !== 0 || dz !== 0;
+  if (isMoving) {
+    playerSprite.userData.animFrame++;
+    if (playerSprite.userData.animFrame % 10 === 0) {
+      const useWalk = (Math.floor(playerSprite.userData.animFrame / 10) % 2) === 1;
+      playerSprite.material.map = useWalk ? playerSprite.userData.texWalk : playerSprite.userData.texStand;
+      playerSprite.material.needsUpdate = true;
+    }
+  } else {
+    playerSprite.material.map = playerSprite.userData.texStand;
+    playerSprite.material.needsUpdate = true;
+    playerSprite.userData.animFrame = 0;
+  }
 }
 
 function updateCamera() {
@@ -458,6 +532,9 @@ function animate(timestamp) {
   // Player + Camera
   updatePlayer();
   updateCamera();
+
+  // Billboard sprites face camera
+  playerSprite.quaternion.copy(camera.quaternion);
 
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
