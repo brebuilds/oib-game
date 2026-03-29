@@ -483,6 +483,90 @@ buildings.forEach(b => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
+//  TASK 8 — NPCs with Patrol Routes
+// ═══════════════════════════════════════════════════════════════════════
+
+const npcDefs = [
+  { x: 29, z: 5, name: 'Old Pete', color: '#cc4444', dialog: 'pier_pete', patrol: [[29,3],[29,7]] },
+  { x: 21, z: 14, name: 'Museum Guide', color: '#44aa44', dialog: 'museum', patrol: [[21,13],[23,13]] },
+  { x: 35, z: 14, name: 'Barista', color: '#77aadd', dialog: 'drift', patrol: [[34,13],[36,13]] },
+  { x: 27, z: 12, name: 'Pirate Pete', color: '#884411', dialog: 'minigolf', patrol: [[26,12],[28,12]] },
+  { x: 28, z: 26, name: 'Chef', color: '#ddaa33', dialog: '59causeway', patrol: [[27,25],[29,25]] },
+  { x: 29, z: 30, name: 'Captain Ray', color: '#3366cc', dialog: 'sharkys', patrol: [[28,29],[31,29]] },
+  { x: 28, z: 33, name: 'Clerk', color: '#ff99bb', dialog: 'sheffields', patrol: [[27,33],[29,33]] },
+  { x: 34, z: 33, name: 'Captain Dave', color: '#224488', dialog: 'fishco', patrol: [[33,33],[36,33]] },
+];
+
+const npcs = npcDefs.map(def => {
+  const sprite = makeBillboardSprite(def.color, '#2a2a2a');
+  sprite.position.y = 0.6;
+
+  const group = new THREE.Group();
+  group.position.set(def.x + 0.5, 0, def.z + 0.5);
+  group.add(sprite);
+
+  // Name label
+  const labelDiv = document.createElement('div');
+  labelDiv.textContent = def.name;
+  labelDiv.style.cssText = 'color:#fff;font:bold 10px monospace;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;';
+  const label = new CSS2DObject(labelDiv);
+  label.position.set(0, 1.5, 0);
+  group.add(label);
+
+  scene.add(group);
+
+  return {
+    def,
+    group,
+    sprite,
+    px: def.x + 0.5,
+    pz: def.z + 0.5,
+    patrolIdx: 0,
+    waitTimer: 0,
+  };
+});
+
+function updateNPCs() {
+  for (const npc of npcs) {
+    // Billboard
+    npc.sprite.quaternion.copy(camera.quaternion);
+
+    if (npc.waitTimer > 0) {
+      npc.waitTimer--;
+      // Standing texture while waiting
+      npc.sprite.material.map = npc.sprite.userData.texStand;
+      npc.sprite.material.needsUpdate = true;
+      continue;
+    }
+
+    const target = npc.def.patrol[npc.patrolIdx];
+    const tx = target[0] + 0.5;
+    const tz = target[1] + 0.5;
+    const ddx = tx - npc.px;
+    const ddz = tz - npc.pz;
+    const dist = Math.sqrt(ddx * ddx + ddz * ddz);
+
+    if (dist < 0.1) {
+      npc.waitTimer = 120;
+      npc.patrolIdx = (npc.patrolIdx + 1) % npc.def.patrol.length;
+    } else {
+      const spd = 0.02;
+      npc.px += (ddx / dist) * spd;
+      npc.pz += (ddz / dist) * spd;
+      npc.group.position.set(npc.px, 0, npc.pz);
+
+      // Walk animation
+      npc.sprite.userData.animFrame = (npc.sprite.userData.animFrame || 0) + 1;
+      if (npc.sprite.userData.animFrame % 10 === 0) {
+        const useWalk = (Math.floor(npc.sprite.userData.animFrame / 10) % 2) === 1;
+        npc.sprite.material.map = useWalk ? npc.sprite.userData.texWalk : npc.sprite.userData.texStand;
+        npc.sprite.material.needsUpdate = true;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  TASK 6 — Load OIB Pier .glb Model
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -535,6 +619,9 @@ function animate(timestamp) {
 
   // Billboard sprites face camera
   playerSprite.quaternion.copy(camera.quaternion);
+
+  // NPC patrol + billboards
+  updateNPCs();
 
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
