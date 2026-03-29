@@ -467,8 +467,101 @@ function addMsg(text) {
   setTimeout(() => { if (el.parentNode) el.remove(); }, 3000);
 }
 
-// discover() stub — fleshed out in Task 10
-function discover(spotId) { /* placeholder until Task 10 */ }
+// ═══════════════════════════════════════════════════════════════════════
+//  TASK 10 — Discovery Journal & Location Labels
+// ═══════════════════════════════════════════════════════════════════════
+
+const spots = [
+  { id: 'pier', name: 'OIB Pier', desc: 'The iconic Ocean Isle Beach fishing pier \u2014 extending into the Atlantic since 1959.', icon: '\ud83c\udfa3' },
+  { id: 'minigolf', name: 'Pirate Mini Golf', desc: 'Pirate-themed mini golf near the roundabout. 18 holes of swashbuckling fun!', icon: '\u26f3' },
+  { id: 'museum', name: 'Museum of Coastal Carolina', desc: 'Learn about the natural history of the Brunswick County coast.', icon: '\ud83c\udfdb' },
+  { id: 'drift', name: 'Drift Coffee & Kitchen', desc: 'Local coffee shop with ocean vibes and great breakfast.', icon: '\u2615' },
+  { id: 'park', name: 'The Park', desc: 'Green space in the heart of the island. Perfect for a quiet moment.', icon: '\ud83c\udf33' },
+  { id: '59causeway', name: '59 Causeway', desc: 'Dining right on the causeway, attached to Sharky\'s.', icon: '\ud83c\udf7d' },
+  { id: 'sharkys', name: 'Sharky\'s Restaurant', desc: 'Tucked near the bridge on the ICW. Fresh seafood and waterfront views.', icon: '\ud83e\udd9e' },
+  { id: 'sheffields', name: 'Sheffield\'s Seafood & Grocery', desc: 'The island\'s go-to for gas, bait, frozen seafood, and beach snacks.', icon: '\ud83c\udfea' },
+  { id: 'fishco', name: 'OIB Fish Company', desc: 'Fishing center on Causeway Drive. Charters, gear, and local knowledge.', icon: '\ud83c\udfa3' },
+];
+
+const discovered = new Set();
+const journalHeaderEl = document.getElementById('journal-header');
+const journalListEl = document.getElementById('journal-list');
+const locationLabelEl = document.getElementById('location-label');
+
+function discover(spotId) {
+  if (discovered.has(spotId)) return;
+  const spot = spots.find(s => s.id === spotId);
+  if (!spot) return;
+  discovered.add(spotId);
+  addMsg(`\u2728 Discovered: ${spot.icon} ${spot.name}!`);
+  updateJournal();
+}
+
+function updateJournal() {
+  journalHeaderEl.textContent = `\ud83d\udcd6 Discovery Journal \u2014 ${discovered.size}/${spots.length}`;
+  while (journalListEl.firstChild) journalListEl.removeChild(journalListEl.firstChild);
+  for (const spot of spots) {
+    const entry = document.createElement('div');
+    entry.className = 'journal-entry' + (discovered.has(spot.id) ? ' found' : '');
+    entry.textContent = discovered.has(spot.id) ? `${spot.icon} ${spot.name}` : '??? Unknown';
+    if (discovered.has(spot.id)) {
+      const tooltip = document.createElement('div');
+      tooltip.className = 'journal-tooltip';
+      tooltip.textContent = spot.desc;
+      entry.appendChild(tooltip);
+    }
+    journalListEl.appendChild(entry);
+  }
+}
+
+// Initialize journal
+updateJournal();
+
+// ─── Location name display ──────────────────────────────────────────
+let lastArea = '';
+let locationTimeout = null;
+
+function getAreaName(row, col) {
+  if (row >= 33 && row <= 35) return 'The Waterfront';
+  if (row >= 22 && row <= 34 && col >= 25 && col <= 35) return 'Causeway Drive';
+  if (row >= 18 && row <= 22 && col >= 15 && col <= 45) return 'The Park';
+  if (row >= 11 && row <= 13 && col >= 27 && col <= 33) return 'The Roundabout';
+  if (row >= 11 && row <= 12) return 'Main Street';
+  if (row >= 7 && row <= 10) return 'The Beach';
+  if (row >= 0 && row <= 6) return 'The Ocean';
+  return '';
+}
+
+function updateLocationLabel() {
+  const row = Math.floor(playerGroup.position.z);
+  const col = Math.floor(playerGroup.position.x);
+  const area = getAreaName(row, col);
+  if (area && area !== lastArea) {
+    lastArea = area;
+    locationLabelEl.textContent = area;
+    locationLabelEl.classList.add('visible');
+    if (locationTimeout) clearTimeout(locationTimeout);
+    locationTimeout = setTimeout(() => locationLabelEl.classList.remove('visible'), 2500);
+  } else if (!area && lastArea) {
+    lastArea = '';
+    locationLabelEl.classList.remove('visible');
+  }
+}
+
+// ─── Zone-based discovery triggers ──────────────────────────────────
+function checkZoneDiscoveries() {
+  const row = Math.floor(playerGroup.position.z);
+  const col = Math.floor(playerGroup.position.x);
+  const tile = getTile(playerGroup.position.x, playerGroup.position.z);
+
+  // Pier discovery when stepping on PIER tile
+  if (tile === TILE.PIER) discover('pier');
+
+  // Park discovery when in park zone on grass
+  if (row >= 18 && row <= 22 && col >= 15 && col <= 45 && tile === TILE.GRASS) {
+    discover('park');
+  }
+}
 
 // ─── Dialog content ─────────────────────────────────────────────────
 const dialogs = {
@@ -832,6 +925,10 @@ function animate(timestamp) {
 
   // NPC patrol + billboards
   updateNPCs();
+
+  // Zone discoveries & location label
+  checkZoneDiscoveries();
+  updateLocationLabel();
 
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
