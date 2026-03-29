@@ -342,7 +342,38 @@ scene.add(playerGroup);
 
 // Input state
 const keys = {};
-window.addEventListener('keydown', e => { keys[e.code] = true; });
+let dialogActive = false;
+let menuIndex = 0;
+let currentDialog = null;
+
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+
+  if (dialogActive) {
+    if (e.code === 'ArrowUp') {
+      e.preventDefault();
+      menuIndex = Math.max(0, menuIndex - 1);
+      renderDialogOptions();
+    } else if (e.code === 'ArrowDown') {
+      e.preventDefault();
+      menuIndex = Math.min((currentDialog?.options?.length || 1) - 1, menuIndex + 1);
+      renderDialogOptions();
+    } else if (e.code === 'Enter' || e.code === 'Space') {
+      e.preventDefault();
+      selectDialogOption();
+    } else if (e.code === 'Escape') {
+      e.preventDefault();
+      closeDialog();
+    }
+    return;
+  }
+
+  // Interaction trigger
+  if (e.code === 'Space' || e.code === 'KeyE') {
+    e.preventDefault();
+    tryInteract();
+  }
+});
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
 const SPEED = 0.08;
@@ -360,10 +391,12 @@ function isWalkable(type) {
 
 function updatePlayer() {
   let dx = 0, dz = 0;
-  if (keys['KeyW'] || keys['ArrowUp'])    dz = -1;
-  if (keys['KeyS'] || keys['ArrowDown'])  dz =  1;
-  if (keys['KeyA'] || keys['ArrowLeft'])  dx = -1;
-  if (keys['KeyD'] || keys['ArrowRight']) dx =  1;
+  if (!dialogActive) {
+    if (keys['KeyW'] || keys['ArrowUp'])    dz = -1;
+    if (keys['KeyS'] || keys['ArrowDown'])  dz =  1;
+    if (keys['KeyA'] || keys['ArrowLeft'])  dx = -1;
+    if (keys['KeyD'] || keys['ArrowRight']) dx =  1;
+  }
 
   // Normalize diagonal
   if (dx !== 0 && dz !== 0) {
@@ -408,6 +441,183 @@ function updateCamera() {
   camera.position.z += (playerGroup.position.z + 20 - camera.position.z) * 0.05;
   camera.position.y += (20 - camera.position.y) * 0.05;
   camera.lookAt(playerGroup.position.x, 0, playerGroup.position.z);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  TASK 9 — Interaction & Dialog System
+// ═══════════════════════════════════════════════════════════════════════
+
+const dialogEl = document.getElementById('dialog');
+const dialogBackdrop = document.getElementById('dialog-backdrop');
+const dialogTextEl = document.getElementById('dialog-text');
+const dialogOptionsEl = document.getElementById('dialog-options');
+const messagesEl = document.getElementById('messages');
+
+// ─── Message notification system ────────────────────────────────────
+function addMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'msg-toast';
+  el.textContent = text;
+  messagesEl.appendChild(el);
+  // Max 3 messages
+  while (messagesEl.children.length > 3) {
+    messagesEl.removeChild(messagesEl.firstChild);
+  }
+  setTimeout(() => el.classList.add('fade'), 2400);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 3000);
+}
+
+// discover() stub — fleshed out in Task 10
+function discover(spotId) { /* placeholder until Task 10 */ }
+
+// ─── Dialog content ─────────────────────────────────────────────────
+const dialogs = {
+  pier_pete: {
+    text: '"Mornin\'! I\'m Old Pete. Been fishin\'\nthis pier for 40 years."',
+    options: [
+      { text: '\ud83c\udfa3 Any good catches today?', action: () => { addMsg('"Pulled in a 20lb red drum this morning!"'); discover('pier'); }},
+      { text: '\u2753 Best fishing spots?', action: () => { addMsg('"Try the end of the pier at sunrise \u2014 flounder love it."'); discover('pier'); }},
+      { text: '\ud83d\udc4b Nice to meet you, Pete!', action: () => { discover('pier'); }},
+    ]
+  },
+  museum: {
+    text: '"Welcome to the Museum of Coastal\nCarolina! We have exhibits on local\nmarine life and island history."',
+    options: [
+      { text: '\ud83d\udc1a Tell me about the exhibits', action: () => { addMsg('"We have a live touch tank and a loggerhead turtle exhibit!"'); discover('museum'); }},
+      { text: '\ud83c\udfdb When was the museum built?', action: () => { addMsg('"We\'ve been here since 1999 \u2014 a real island gem."'); discover('museum'); }},
+      { text: '\ud83d\udc4b Thanks!', action: () => { discover('museum'); }},
+    ]
+  },
+  drift: {
+    text: '"Hey! Welcome to Drift Coffee.\nWhat can I get started for you?"',
+    options: [
+      { text: '\u2615 What\'s your best drink?', action: () => { addMsg('"Our cold brew is legendary \u2014 perfect for a beach day."'); discover('drift'); }},
+      { text: '\ud83e\udd50 Got any food?', action: () => { addMsg('"Fresh pastries and breakfast sandwiches every morning!"'); discover('drift'); }},
+      { text: '\ud83d\udc4b Just browsing', action: () => { discover('drift'); }},
+    ]
+  },
+  minigolf: {
+    text: '"Arrr! Welcome to the mini golf!\n18 holes of pirate-themed fun!"',
+    options: [
+      { text: '\u26f3 How\'s the course?', action: () => { addMsg('"Best mini golf on the coast \u2014 real pirate ship on hole 9!"'); discover('minigolf'); }},
+      { text: '\ud83c\udff4\u200d\u2620\ufe0f Love the pirate theme!', action: () => { addMsg('"Arrr, we take our theming seriously, matey!"'); discover('minigolf'); }},
+      { text: '\ud83d\udc4b Maybe later', action: () => { discover('minigolf'); }},
+    ]
+  },
+  '59causeway': {
+    text: '"Welcome to 59 Causeway!\nGreat food, great views."',
+    options: [
+      { text: '\ud83c\udf7d What\'s good here?', action: () => { addMsg('"Everything \u2014 but the seafood platter is the move."'); discover('59causeway'); }},
+      { text: '\ud83c\udf05 Nice location!', action: () => { addMsg('"Right on the causeway \u2014 can\'t beat the sunset views."'); discover('59causeway'); }},
+      { text: '\ud83d\udc4b Thanks!', action: () => { discover('59causeway'); }},
+    ]
+  },
+  sharkys: {
+    text: '"Welcome to Sharky\'s! Tucked right\nunder the bridge on the waterway.\nFreshest seafood on the island."',
+    options: [
+      { text: '\ud83e\udd9e What\'s the catch of the day?', action: () => { addMsg('"Flounder, shrimp, and mahi \u2014 all off the boats today."'); discover('sharkys'); }},
+      { text: '\ud83c\udf7a Great spot for a drink?', action: () => { addMsg('"Grab a seat on the back deck \u2014 watch the boats go by."'); discover('sharkys'); }},
+      { text: '\ud83d\udc4b Thanks, Captain!', action: () => { discover('sharkys'); }},
+    ]
+  },
+  sheffields: {
+    text: '"Welcome to Sheffield\'s! We\'ve got\nbait, tackle, and frozen seafood.\nPlus snacks for the beach!"',
+    options: [
+      { text: '\ud83e\udea3 What bait do you recommend?', action: () => { addMsg('"Live shrimp for flounder, cut mullet for drum!"'); discover('sheffields'); }},
+      { text: '\ud83e\uddca Check out the frozen seafood', action: () => { addMsg('"Fresh off the boats \u2014 shrimp, flounder, mahi."'); discover('sheffields'); }},
+      { text: '\ud83d\udc4b Thanks!', action: () => { discover('sheffields'); }},
+    ]
+  },
+  fishco: {
+    text: '"OIB Fish Company \u2014 fishing charters,\ngear, and local knowledge.\nReady to catch the big one?"',
+    options: [
+      { text: '\ud83c\udfa3 Book a charter?', action: () => { addMsg('"We run offshore trips daily \u2014 king mackerel are running!"'); discover('fishco'); }},
+      { text: '\ud83d\udc1f What\'s biting?', action: () => { addMsg('"Redfish in the ICW, flounder at the pier, kings offshore."'); discover('fishco'); }},
+      { text: '\ud83d\udc4b Maybe next time', action: () => { discover('fishco'); }},
+    ]
+  },
+};
+
+// ─── Dialog UI functions ────────────────────────────────────────────
+function openDialog(dialogKey) {
+  const d = dialogs[dialogKey];
+  if (!d) return;
+  currentDialog = d;
+  menuIndex = 0;
+  dialogActive = true;
+  dialogTextEl.textContent = d.text;
+  renderDialogOptions();
+  dialogEl.style.display = 'block';
+  dialogBackdrop.style.display = 'block';
+}
+
+function renderDialogOptions() {
+  if (!currentDialog) return;
+  while (dialogOptionsEl.firstChild) dialogOptionsEl.removeChild(dialogOptionsEl.firstChild);
+  currentDialog.options.forEach((opt, i) => {
+    const li = document.createElement('li');
+    li.textContent = opt.text;
+    if (i === menuIndex) li.classList.add('selected');
+    li.addEventListener('click', () => { menuIndex = i; selectDialogOption(); });
+    dialogOptionsEl.appendChild(li);
+  });
+}
+
+function selectDialogOption() {
+  if (!currentDialog) return;
+  const opt = currentDialog.options[menuIndex];
+  closeDialog();
+  if (opt && opt.action) opt.action();
+}
+
+function closeDialog() {
+  dialogActive = false;
+  currentDialog = null;
+  dialogEl.style.display = 'none';
+  dialogBackdrop.style.display = 'none';
+}
+
+// ─── Interaction logic ──────────────────────────────────────────────
+function tryInteract() {
+  if (dialogActive) return;
+  const px = playerGroup.position.x;
+  const pz = playerGroup.position.z;
+
+  // 1. Check NPC proximity (distance < 2)
+  for (const npc of npcs) {
+    const ddx = px - npc.px;
+    const ddz = pz - npc.pz;
+    if (Math.sqrt(ddx * ddx + ddz * ddz) < 2) {
+      openDialog(npc.def.dialog);
+      return;
+    }
+  }
+
+  // 2. Check building entrance proximity (distance < 3)
+  for (const b of buildings) {
+    const entranceX = b.x + b.w / 2;
+    const entranceZ = b.z + b.d;
+    const ddx = px - entranceX;
+    const ddz = pz - entranceZ;
+    if (Math.sqrt(ddx * ddx + ddz * ddz) < 3) {
+      if (dialogs[b.type]) {
+        openDialog(b.type);
+      } else {
+        addMsg(`${b.name} \u2014 looks interesting!`);
+      }
+      return;
+    }
+  }
+
+  // 3. Beach tiles
+  const row = Math.floor(pz);
+  if (row >= 7 && row <= 10) {
+    addMsg('The ocean breeze feels amazing. Nothing like OIB sand between your toes!');
+    return;
+  }
+
+  // 4. Nothing nearby
+  addMsg('Nothing to interact with here.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════
