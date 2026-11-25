@@ -4,9 +4,6 @@ A walkable, isometric Ocean Isle Beach built in hand-written Three.js — no
 framework. Wander the island, meet locals with real dialog, keep a discovery
 journal, and watch the day roll into night.
 
-![The island at dusk: shops, NPCs and the discovery journal](docs/screenshot.png)
-
-**Play:** https://oib-game.vercel.app
 
 ## Built with
 - Three.js (via import map, no bundler) + CSS2DRenderer for labels
